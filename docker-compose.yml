@@ -41,13 +41,10 @@ x-common-env-variables: &common-variables
   # Change to "true" if re-enabling logging service for remote logging
   Logging_EnableRemote: "false"
   #  Clients_Logging_Host: edgex-support-logging # un-comment if re-enabling logging service for remote logging
-  REDIS5_PASSWORD_PATHNAME: /tmp/edgex/secrets/edgex-redis/redis5-password
-
-
+  
 # REDIS5_PASSWORD_PATHNAME must have the same value as
 # security-secretstore-read/res/configuration.toml SecretStore.Passwordfile. Note edgex-go issue
 # #2503 that will address this.
-
 x-redis5-env-variables: &redis5-variables
   REDIS5_PASSWORD_PATHNAME: /tmp/edgex/secrets/edgex-redis/redis5-password
 
@@ -120,7 +117,7 @@ services:
     container_name: edgex-secrets-setup
     hostname: edgex-secrets-setup
     environment:
-      <<: *common-variables
+      <<: *redis5-variables
     tmpfs:
       - /tmp
       - /run
@@ -135,8 +132,9 @@ services:
     container_name: edgex-vault-worker
     hostname: edgex-vault-worker
     environment:
-      - "SECRETSTORE_SETUP_DONE_FLAG=/tmp/edgex/secrets/edgex-consul/.secretstore-setup-done"
-      - "ADD_SECRETSTORE_TOKENS=secrets-example"
+      SECRETSTORE_SETUP_DONE_FLAG : /tmp/edgex/secrets/edgex-consul/.secretstore-setup-done
+      ADD_SECRETSTORE_TOKENS : secrets-example
+      <<: *redis5-variables
     networks:
       - edgex-network
     tmpfs:
@@ -254,7 +252,7 @@ services:
 # end of containers for reverse proxy
 
 
-#--------------Secret Store + Application Service 버전---------
+#--------------Secret Store + Application Service redis version---------
   redis:
     image: redis:5.0.8-alpine
     ports:
@@ -262,7 +260,7 @@ services:
     container_name: edgex-redis
     hostname: edgex-redis
     environment:
-      <<: *common-variables
+      <<: *redis5-variables
     command: |
       /bin/sh -c "
       until [ -r $${REDIS5_PASSWORD_PATHNAME} ] && [ -s $${REDIS5_PASSWORD_PATHNAME} ]; do sleep 1; done
@@ -417,7 +415,7 @@ services:
 #      - logging  # uncomment if re-enabled remote logging
       - redis
       - metadata
-      # - vault-worker
+      - vault-worker
 
   command:
     image: edgexfoundry/docker-core-command-go:1.2.1
@@ -526,22 +524,22 @@ services:
 # Device Services
 #################################################################
 
-  device-virtual:
-    image: edgexfoundry/docker-device-virtual-go:1.2.2
-    ports:
-    - "127.0.0.1:49990:49990"
-    container_name: edgex-device-virtual
-    hostname: edgex-device-virtual
-    networks:
-      - edgex-network
-    environment:
-      <<: *common-variables
-      Service_Host: edgex-device-virtual
-    depends_on:
-      - consul
-#      - logging  # uncomment if re-enabled remote logging
-      - data
-      - metadata
+#   device-virtual:
+#     image: edgexfoundry/docker-device-virtual-go:1.2.2
+#     ports:
+#     - "127.0.0.1:49990:49990"
+#     container_name: edgex-device-virtual
+#     hostname: edgex-device-virtual
+#     networks:
+#       - edgex-network
+#     environment:
+#       <<: *common-variables
+#       Service_Host: edgex-device-virtual
+#     depends_on:
+#       - consul
+# #      - logging  # uncomment if re-enabled remote logging
+#       - data
+#       - metadata
 
   device-rest:
     image: edgexfoundry/docker-device-rest-go:1.1.1
@@ -611,7 +609,7 @@ services:
 #application service 이미지
   application-service-nmea:
     image: synctechno/application-service-nmea:1.0
-    # image: application-service-temp:latest
+    # image: greenyjwk/application-service-nmea:1.0
     ports:  
       - "127.0.0.1:48095:48095"
       - "127.0.0.1:8082:8082"
@@ -642,6 +640,7 @@ services:
       - command
       - consul
       - vault-worker
+      - redis
       
     # - logging  # uncomment if re-enabled remote logging
 
