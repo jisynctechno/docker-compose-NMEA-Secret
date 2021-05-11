@@ -41,10 +41,13 @@ x-common-env-variables: &common-variables
   # Change to "true" if re-enabling logging service for remote logging
   Logging_EnableRemote: "false"
   #  Clients_Logging_Host: edgex-support-logging # un-comment if re-enabling logging service for remote logging
+  REDIS5_PASSWORD_PATHNAME: /tmp/edgex/secrets/edgex-redis/redis5-password
+
 
 # REDIS5_PASSWORD_PATHNAME must have the same value as
 # security-secretstore-read/res/configuration.toml SecretStore.Passwordfile. Note edgex-go issue
 # #2503 that will address this.
+
 x-redis5-env-variables: &redis5-variables
   REDIS5_PASSWORD_PATHNAME: /tmp/edgex/secrets/edgex-redis/redis5-password
 
@@ -117,7 +120,7 @@ services:
     container_name: edgex-secrets-setup
     hostname: edgex-secrets-setup
     environment:
-      <<: *redis5-variables
+      <<: *common-variables
     tmpfs:
       - /tmp
       - /run
@@ -250,6 +253,8 @@ services:
 
 # end of containers for reverse proxy
 
+
+#--------------Secret Store + Application Service 버전---------
   redis:
     image: redis:5.0.8-alpine
     ports:
@@ -257,7 +262,7 @@ services:
     container_name: edgex-redis
     hostname: edgex-redis
     environment:
-      <<: *redis5-variables
+      <<: *common-variables
     command: |
       /bin/sh -c "
       until [ -r $${REDIS5_PASSWORD_PATHNAME} ] && [ -s $${REDIS5_PASSWORD_PATHNAME} ]; do sleep 1; done
@@ -274,6 +279,26 @@ services:
       - /tmp/edgex/secrets/edgex-redis:/tmp/edgex/secrets/edgex-redis:z
     depends_on:
       - vault-worker
+# ------------------------------------------------------------
+
+
+# --------------Application Service redis version---------
+  # redis:
+  #   image: redis:5.0.8-alpine
+  #   ports:
+  #     - "127.0.0.1:6379:6379"
+  #   container_name: edgex-redis
+  #   hostname: edgex-redis
+  #   networks:
+  #     - edgex-network
+  #   environment:
+  #     <<: *common-variables
+  #   volumes:
+  #     - db-data:/data:z
+# -------------------------------
+
+
+
 
 # The logging service has been deprecated in Geneva release and will be removed in the Hanoi release.
 # All services are configure to send logging to STDOUT, i.e. not remote which requires this logging service
@@ -392,7 +417,7 @@ services:
 #      - logging  # uncomment if re-enabled remote logging
       - redis
       - metadata
-      - vault-worker
+      # - vault-worker
 
   command:
     image: edgexfoundry/docker-core-command-go:1.2.1
@@ -449,7 +474,8 @@ services:
       - edgex-network
     environment:
       <<: *common-variables
-      EDGEX_SECURITY_SECRET_STORE: "false" # required since SecretStore not used and not configured
+      # EDGEX_SECURITY_SECRET_STORE: "false" # required since SecretStore not used and not configured
+      EDGEX_SECURITY_SECRET_STORE: "true" # required since SecretStore not used and not configured
       edgex_profile: rules-engine
       Service_Host: edgex-app-service-configurable-rules
       Service_Port: 48100
@@ -534,50 +560,50 @@ services:
   #      - logging  # uncomment if re-enabled remote logging
 
 
-  app-service-secrets-example:
-    image: edgexfoundry/docker-secrets-example:dev
-    container_name: app-service-secrets-example
-    hostname: app-service-secrets-example
-    ports:
-      - "48095:48095"
-    networks:
-      - edgex-network
-    environment:
-      <<: *common-variables
-      SecretStore_Protocol: https
-      SecretStore_TokenFile: /tmp/edgex/secrets/edgex-application-service/secrets-token.json
-      SecretStoreExclusive_Host: edgex-vault
-      SecretStoreExclusive_Protocol: https
-      SecretStoreExclusive_RootCaCertPath: /tmp/edgex/secrets/ca/ca.pem
-      SecretStoreExclusive_ServerName: edgex-vault
-      SecretStoreExclusive_TokenFile: /tmp/edgex/secrets/secrets-example/secrets-token.json
-    volumes:
-      - /tmp/edgex/secrets/ca:/tmp/edgex/secrets/ca:ro,z
-      - /tmp/edgex/secrets/edgex-application-service:/tmp/edgex/secrets/edgex-application-service:ro,z 
-      - /tmp/edgex/secrets/secrets-example:/tmp/edgex/secrets/secrets-example:ro,z 
-    depends_on:
-      - vault-worker
-      - data
+  # app-service-secrets-example:
+  #   image: edgexfoundry/docker-secrets-example:dev
+  #   container_name: app-service-secrets-example
+  #   hostname: app-service-secrets-example
+  #   ports:
+  #     - "48095:48095"
+  #   networks:
+  #     - edgex-network
+  #   environment:
+  #     <<: *common-variables
+  #     SecretStore_Protocol: https
+  #     SecretStore_TokenFile: /tmp/edgex/secrets/edgex-application-service/secrets-token.json
+  #     SecretStoreExclusive_Host: edgex-vault
+  #     SecretStoreExclusive_Protocol: https
+  #     SecretStoreExclusive_RootCaCertPath: /tmp/edgex/secrets/ca/ca.pem
+  #     SecretStoreExclusive_ServerName: edgex-vault
+  #     SecretStoreExclusive_TokenFile: /tmp/edgex/secrets/secrets-example/secrets-token.json
+  #   volumes:
+  #     - /tmp/edgex/secrets/ca:/tmp/edgex/secrets/ca:ro,z
+  #     - /tmp/edgex/secrets/edgex-application-service:/tmp/edgex/secrets/edgex-application-service:ro,z 
+  #     - /tmp/edgex/secrets/secrets-example:/tmp/edgex/secrets/secrets-example:ro,z 
+  #   depends_on:
+  #     - vault-worker
+  #     - data
 
 
 
 #device nmea 이미지
-device-nmea:
-  image: synctechno/device-nmea:1.0
-  ports:
-    - "127.0.0.1:49994:49994"
-    - "127.0.0.1:9090:9090"
-  container_name: device-nmea
-  hostname: device-nmea
-  networks:
-    - edgex-network
-  environment:
-    <<: *common-variables
-    Service_Host: device-nmea
-  depends_on:
-    - data
-    - command
-    # - logging  # uncomment if re-enabled remote logging
+  device-nmea:
+    image: synctechno/device-nmea:1.0
+    ports:
+      - "127.0.0.1:49994:49994"
+      - "127.0.0.1:9090:9090"
+    container_name: device-nmea
+    hostname: device-nmea
+    networks:
+      - edgex-network
+    environment:
+      <<: *common-variables
+      Service_Host: device-nmea
+    depends_on:
+      - data
+      - command
+      # - logging  # uncomment if re-enabled remote logging
 
 
 
@@ -599,10 +625,24 @@ device-nmea:
       Service_Host: application-service-nmea
       MessageBus_SubscribeHost_Host: edgex-core-data
       Binding_PublishTopic: events
+      #------- 이하는 Vault를 위한 환경변수 -------#
+      SecretStore_Protocol: https
+      SecretStore_TokenFile: /tmp/edgex/secrets/edgex-application-service/secrets-token.json
+      SecretStoreExclusive_Host: edgex-vault
+      SecretStoreExclusive_Protocol: https
+      SecretStoreExclusive_RootCaCertPath: /tmp/edgex/secrets/ca/ca.pem
+      SecretStoreExclusive_ServerName: edgex-vault
+      SecretStoreExclusive_TokenFile: /tmp/edgex/secrets/secrets-example/secrets-token.json
+    volumes:
+        - /tmp/edgex/secrets/ca:/tmp/edgex/secrets/ca:ro,z
+        - /tmp/edgex/secrets/edgex-application-service:/tmp/edgex/secrets/edgex-application-service:ro,z 
+        - /tmp/edgex/secrets/secrets-example:/tmp/edgex/secrets/secrets-example:ro,z 
     depends_on:
       - data
       - command
       - consul
+      - vault-worker
+      
     # - logging  # uncomment if re-enabled remote logging
 
 
