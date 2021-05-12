@@ -608,8 +608,10 @@ services:
 
 #application service 이미지
   application-service-nmea:
-    image: synctechno/application-service-nmea:1.0
+    # image: synctechno/application-service-nmea:1.0
     # image: greenyjwk/application-service-nmea:1.0
+    # image : secret_appservice_test:dev
+    image : test1748:dev
     ports:  
       - "127.0.0.1:48095:48095"
       - "127.0.0.1:8082:8082"
@@ -641,7 +643,7 @@ services:
       - consul
       - vault-worker
       - redis
-      
+      - vault
     # - logging  # uncomment if re-enabled remote logging
 
 
