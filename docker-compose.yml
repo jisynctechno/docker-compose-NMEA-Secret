@@ -464,7 +464,7 @@ services:
 
   app-service-rules:
     image: edgexfoundry/docker-app-service-configurable:1.2.0
-    ports:
+    ports:  
       - "127.0.0.1:48100:48100"
     container_name: edgex-app-service-configurable-rules
     hostname: edgex-app-service-configurable-rules
@@ -610,12 +610,10 @@ services:
   application-service-nmea:
     # image: synctechno/application-service-nmea:1.0
     # image: greenyjwk/application-service-nmea:1.0
-    # image : secret_appservice_test:dev
-    image : test1748:dev
+    image : apptest1452:dev
     ports:  
       - "127.0.0.1:48095:48095"
       - "127.0.0.1:8082:8082"
-
     container_name: application-service-nmea
     hostname: application-service-nmea
     networks:
@@ -625,6 +623,8 @@ services:
       Service_Host: application-service-nmea
       MessageBus_SubscribeHost_Host: edgex-core-data
       Binding_PublishTopic: events
+      Databases_Host: edgex-redis
+
       #------- 이하는 Vault를 위한 환경변수 -------#
       SecretStore_Protocol: https
       SecretStore_TokenFile: /tmp/edgex/secrets/edgex-application-service/secrets-token.json
@@ -644,6 +644,7 @@ services:
       - vault-worker
       - redis
       - vault
+      - security-secrets-setup
     # - logging  # uncomment if re-enabled remote logging
 
 
